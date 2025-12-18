@@ -21,18 +21,26 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
   
   <style>
-    /* 评论区容器 */
+    .katex .katex-mathml {
+        display: none !important;
+    }
+    /* 评论区容器：最小高度 200px，随内容增长，最大高度 660px，超出时内部历史区滚动 */
     #paper-chat-container {
       margin-top: 50px;
       padding-top: 20px;
       border-top: 1px solid #eaecef;
+      min-height: 200px;       /* 公共研讨区最小高度 */
+      max-height: 660px;       /* 公共研讨区最大高度 */
+      display: flex;
+      flex-direction: column;  /* 让历史列表和输入区按列布局 */
     }
     .chat-header { font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; }
     
-    /* 消息列表 */
+    /* 消息列表：占据评论区除输入区外的空间，只在内部滚动 */
     #chat-history {
-      max-height: 500px;
-      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;           /* 配合 flex，允许在容器内收缩 */
+      overflow-y: auto;        /* 只在历史区内部滚动 */
       background: #f9f9f9;
       padding: 15px;
       border-radius: 8px;
@@ -88,6 +96,12 @@
       font-weight: bold;
     }
     #send-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* 覆盖 Docsify 主题默认的中间滚动容器，只保留最外层页面滚动 */
+    .content {
+      height: auto !important;
+      overflow: visible !important;
+    }
   </style>
 </head>
 <body>
