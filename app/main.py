@@ -110,7 +110,7 @@ class KeywordRequest(BaseModel):
 class ZoteroRequest(BaseModel):
     zotero_id: str
     api_key: str
-    alias: str
+    alias: str | None = None
 
 @app.get("/api/history")
 def get_history(paper_id: str):
@@ -513,6 +513,47 @@ def delete_tracked_paper(tid: int):
     return {"status": "ok"}
 
 
+@app.post("/api/subscriptions/zotero/verify")
+def verify_zotero(req: ZoteroRequest):
+    """
+    验证 Zotero 账号是否有效，通过调用 Zotero API 检查
+    """
+    import requests
+    
+    zid = (req.zotero_id or "").strip()
+    key = (req.api_key or "").strip()
+    
+    if not zid or not key:
+        raise HTTPException(status_code=400, detail="Zotero ID 和 API Key 不能为空")
+    
+    try:
+        # 调用 Zotero API 获取用户信息
+        url = f"https://api.zotero.org/users/{zid}/items"
+        headers = {
+            "Zotero-API-Key": key,
+            "Zotero-API-Version": "3"
+        }
+        params = {"limit": 1}  # 只获取一条记录来验证
+        
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            return {"status": "ok", "valid": True, "message": "验证成功"}
+        elif response.status_code == 403:
+            return {"status": "error", "valid": False, "message": "API Key 无效或权限不足"}
+        elif response.status_code == 404:
+            return {"status": "error", "valid": False, "message": "用户 ID 不存在"}
+        else:
+            return {"status": "error", "valid": False, "message": f"验证失败: HTTP {response.status_code}"}
+    
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=408, detail="请求超时，请检查网络连接")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"网络请求失败: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"验证失败: {str(e)}")
+
+
 @app.post("/api/subscriptions/zotero")
 def add_zotero(req: ZoteroRequest):
     zid = (req.zotero_id or "").strip()
@@ -520,6 +561,8 @@ def add_zotero(req: ZoteroRequest):
     alias = (req.alias or "").strip()
     if not zid or not key:
         raise HTTPException(status_code=400, detail="Zotero ID 和 Key 不能为空")
+    if not alias:
+        raise HTTPException(status_code=400, detail="备注不能为空")
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute(
             """

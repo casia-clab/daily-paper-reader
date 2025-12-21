@@ -237,6 +237,11 @@
       display: none;
       align-items: center;
       justify-content: center;
+      opacity: 0;
+      transition: opacity 0.25s ease-out;
+    }
+    #arxiv-search-overlay.show {
+      opacity: 1;
     }
     #arxiv-search-panel {
       width: min(720px, 90vw);
@@ -249,6 +254,13 @@
       padding: 16px;
       overflow-y: auto;  /* 只显示垂直滚动条 */
       overflow-x: hidden;  /* 隐藏横向滚动条 */
+      transform: scale(0.9) translateY(20px);
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease-out;
+    }
+    #arxiv-search-overlay.show #arxiv-search-panel {
+      transform: scale(1) translateY(0);
+      opacity: 1;
     }
     #arxiv-search-panel-header {
       display: flex;
@@ -871,9 +883,11 @@
             const zoteroIdInput = document.getElementById('zotero-id-input');
             const zoteroKeyInput = document.getElementById('zotero-key-input');
             const zoteroAliasInput = document.getElementById('zotero-alias-input');
+            const zoteroTestBtn = document.getElementById('zotero-test-btn');
             const zoteroAddBtn = document.getElementById('zotero-add-btn');
 
             let lastSearchTs = 0;
+            let zoteroVerified = false; // 标记 Zotero 是否验证成功
 
             const renderKeywords = (items) => {
               if (!keywordsListEl) return;
@@ -964,6 +978,12 @@
 
             const openOverlay = () => {
               overlay.style.display = 'flex';
+              // 触发重排后添加动画类
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  overlay.classList.add('show');
+                });
+              });
               msgEl.textContent = '提示：3 秒内只能搜索一次';
               resultsEl.innerHTML = '';
               loadSubscriptions();
@@ -971,7 +991,11 @@
             };
 
             const closeOverlay = () => {
-              overlay.style.display = 'none';
+              overlay.classList.remove('show');
+              // 等待动画完成后隐藏
+              setTimeout(() => {
+                overlay.style.display = 'none';
+              }, 300);
             };
 
             const renderResults = (items) => {
@@ -1161,15 +1185,24 @@
             };
 
             const addZotero = async () => {
+              // 检查是否已验证
+              if (!zoteroVerified) {
+                msgEl.textContent = '请先点击"测试"按钮验证 Zotero 账号';
+                msgEl.style.color = '#c00';
+                return;
+              }
+              
               const zid = (zoteroIdInput.value || '').trim();
               const key = (zoteroKeyInput.value || '').trim();
               const alias = (zoteroAliasInput.value || '').trim();
               if (!zid || !key) {
                 msgEl.textContent = 'Zotero ID 和 Key 不能为空';
+                msgEl.style.color = '#c00';
                 return;
               }
               if (!alias) {
                 msgEl.textContent = '备注为必填项';
+                msgEl.style.color = '#c00';
                 return;
               }
               try {
@@ -1181,16 +1214,121 @@
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
                   msgEl.textContent = data.detail || '新增 Zotero 失败';
+                  msgEl.style.color = '#c00';
                 } else {
                   msgEl.textContent = 'Zotero 已新增。';
+                  msgEl.style.color = '#080';
                   zoteroIdInput.value = '';
                   zoteroKeyInput.value = '';
                   zoteroAliasInput.value = '';
+                  // 重置验证状态
+                  zoteroVerified = false;
+                  zoteroTestBtn.textContent = '测试';
+                  zoteroTestBtn.style.background = '';
+                  zoteroTestBtn.style.color = '';
                   loadSubscriptions();
                 }
               } catch (e) {
                 console.error(e);
                 msgEl.textContent = '新增 Zotero 失败，请稍后重试';
+                msgEl.style.color = '#c00';
+              }
+            };
+
+            const testZotero = async () => {
+              const zid = (zoteroIdInput.value || '').trim();
+              const key = (zoteroKeyInput.value || '').trim();
+              
+              if (!zid || !key) {
+                msgEl.textContent = 'Zotero ID 和 API Key 不能为空';
+                msgEl.style.color = '#c00';
+                return;
+              }
+              
+              // 禁用按钮，显示测试中
+              zoteroTestBtn.disabled = true;
+              zoteroTestBtn.textContent = '测试中...';
+              msgEl.textContent = '正在验证 Zotero 账号...';
+              msgEl.style.color = '#666';
+              
+              try {
+                // 直接调用 Zotero API 进行验证
+                const url = `https://api.zotero.org/users/${encodeURIComponent(zid)}/items?limit=1`;
+                const res = await fetch(url, {
+                  method: 'GET',
+                  headers: {
+                    'Zotero-API-Key': key,
+                    'Zotero-API-Version': '3'
+                  }
+                });
+                
+                if (res.status === 200) {
+                  // 验证成功
+                  zoteroVerified = true;
+                  zoteroTestBtn.textContent = '✓ 验证成功';
+                  zoteroTestBtn.style.background = '#4CAF50';
+                  zoteroTestBtn.style.color = '#fff';
+                  msgEl.textContent = 'Zotero 账号验证成功，可以新增了';
+                  msgEl.style.color = '#4CAF50';
+                } else if (res.status === 403) {
+                  // API Key 无效
+                  zoteroVerified = false;
+                  zoteroTestBtn.textContent = '✗ 验证失败';
+                  zoteroTestBtn.style.background = '#f44336';
+                  zoteroTestBtn.style.color = '#fff';
+                  msgEl.textContent = 'API Key 无效或权限不足';
+                  msgEl.style.color = '#c00';
+                  
+                  setTimeout(() => {
+                    zoteroTestBtn.textContent = '测试';
+                    zoteroTestBtn.style.background = '';
+                    zoteroTestBtn.style.color = '';
+                  }, 3000);
+                } else if (res.status === 404) {
+                  // 用户 ID 不存在
+                  zoteroVerified = false;
+                  zoteroTestBtn.textContent = '✗ 验证失败';
+                  zoteroTestBtn.style.background = '#f44336';
+                  zoteroTestBtn.style.color = '#fff';
+                  msgEl.textContent = '用户 ID 不存在';
+                  msgEl.style.color = '#c00';
+                  
+                  setTimeout(() => {
+                    zoteroTestBtn.textContent = '测试';
+                    zoteroTestBtn.style.background = '';
+                    zoteroTestBtn.style.color = '';
+                  }, 3000);
+                } else {
+                  // 其他错误
+                  zoteroVerified = false;
+                  zoteroTestBtn.textContent = '✗ 验证失败';
+                  zoteroTestBtn.style.background = '#f44336';
+                  zoteroTestBtn.style.color = '#fff';
+                  msgEl.textContent = `验证失败: HTTP ${res.status}`;
+                  msgEl.style.color = '#c00';
+                  
+                  setTimeout(() => {
+                    zoteroTestBtn.textContent = '测试';
+                    zoteroTestBtn.style.background = '';
+                    zoteroTestBtn.style.color = '';
+                  }, 3000);
+                }
+              } catch (e) {
+                console.error('Zotero 验证错误:', e);
+                zoteroVerified = false;
+                zoteroTestBtn.textContent = '✗ 测试失败';
+                zoteroTestBtn.style.background = '#f44336';
+                zoteroTestBtn.style.color = '#fff';
+                msgEl.textContent = '测试失败: ' + (e.message || '请检查网络连接');
+                msgEl.style.color = '#c00';
+                
+                setTimeout(() => {
+                  zoteroTestBtn.textContent = '测试';
+                  zoteroTestBtn.style.background = '';
+                  zoteroTestBtn.style.color = '';
+                }, 3000);
+              } finally {
+                zoteroTestBtn.disabled = false;
               }
             };
 
@@ -1276,9 +1414,36 @@
                 }
               });
             }
+            if (zoteroTestBtn && !zoteroTestBtn._bound) {
+              zoteroTestBtn._bound = true;
+              zoteroTestBtn.addEventListener('click', testZotero);
+            }
             if (zoteroAddBtn && !zoteroAddBtn._bound) {
               zoteroAddBtn._bound = true;
               zoteroAddBtn.addEventListener('click', addZotero);
+            }
+            // 监听输入框变化，重置验证状态
+            if (zoteroIdInput && !zoteroIdInput._bound) {
+              zoteroIdInput._bound = true;
+              zoteroIdInput.addEventListener('input', () => {
+                if (zoteroVerified) {
+                  zoteroVerified = false;
+                  zoteroTestBtn.textContent = '测试';
+                  zoteroTestBtn.style.background = '';
+                  zoteroTestBtn.style.color = '';
+                }
+              });
+            }
+            if (zoteroKeyInput && !zoteroKeyInput._bound) {
+              zoteroKeyInput._bound = true;
+              zoteroKeyInput.addEventListener('input', () => {
+                if (zoteroVerified) {
+                  zoteroVerified = false;
+                  zoteroTestBtn.textContent = '测试';
+                  zoteroTestBtn.style.background = '';
+                  zoteroTestBtn.style.color = '';
+                }
+              });
             }
             if (zoteroAliasInput && !zoteroAliasInput._bound) {
               zoteroAliasInput._bound = true;
@@ -1684,6 +1849,12 @@
             var overlay = document.getElementById('arxiv-search-overlay');
             if (overlay) {
               overlay.style.display = 'flex';
+              // 触发动画
+              requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                  overlay.classList.add('show');
+                });
+              });
             }
           }, 100);
         });
