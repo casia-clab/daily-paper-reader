@@ -253,13 +253,13 @@ article.markdown-section {
 
 /* 已阅读论文在侧边栏中的高亮样式（灰白色） */
 .sidebar-nav li.sidebar-paper-read {
-  background-color: #f3f3f3;
+  background-color: #f7f7f7;
   border-radius: 4px;
 }
 
 /* 评价为“好”的论文（浅绿色文字，灰底保持一致） */
 .sidebar-nav li.sidebar-paper-good {
-  background-color: #f3f3f3;
+  background-color: #f7f7f7;
   border-radius: 4px;
 }
 .sidebar-nav li.sidebar-paper-good > a {
@@ -268,7 +268,7 @@ article.markdown-section {
 
 /* 评价为“差”的论文（浅红色文字，灰底保持一致） */
 .sidebar-nav li.sidebar-paper-bad {
-  background-color: #f3f3f3;
+  background-color: #f7f7f7;
   border-radius: 4px;
 }
 .sidebar-nav li.sidebar-paper-bad > a {
@@ -301,6 +301,38 @@ article.markdown-section {
 }
 .sidebar-nav li.sidebar-paper-item.active > a {
   font-weight: 600;
+}
+
+/* 覆盖 Docsify 默认样式：鼠标移到侧边栏链接上不出现下划线 */
+.sidebar-nav a:hover {
+  text-decoration: none;
+}
+
+/* 选中链接时字体颜色保持与原始状态一致（包括好/一般的自定义颜色） */
+.sidebar-nav a.active,
+.sidebar-nav a.router-link-active,
+.sidebar-nav li.active > a {
+  color: inherit !important;
+}
+
+/* 对“不错 / 一般”评价的条目，选中时仍保持各自的绿色 / 粉色 */
+.sidebar-nav li.sidebar-paper-good > a,
+.sidebar-nav li.sidebar-paper-good.active > a,
+.sidebar-nav li.sidebar-paper-good > a.active,
+.sidebar-nav li.sidebar-paper-good > a.router-link-active {
+  color: #389e0d !important;
+}
+.sidebar-nav li.sidebar-paper-bad > a,
+.sidebar-nav li.sidebar-paper-bad.active > a,
+.sidebar-nav li.sidebar-paper-bad > a.active,
+.sidebar-nav li.sidebar-paper-bad > a.router-link-active {
+  color: #c41d7f !important;
+}
+
+/* 全局确保侧边栏链接在 hover 时不出现下划线 */
+.sidebar-nav a,
+.sidebar-nav a:hover {
+  text-decoration: none !important;
 }
 
 /* 已阅读/评价论文的整行（含行间距）都使用灰底：
