@@ -9,7 +9,8 @@ window.$docsify = {
   alias: {
     '/.*/_sidebar.md': '/_sidebar.md',
   },
-  subMaxLevel: 2,
+  // 只在侧边栏展示论文列表标题，不展示文内小节（例如 Abstract）
+  subMaxLevel: 0,
 
   // --- 核心：注册自定义插件 ---
   plugins: [
@@ -351,7 +352,19 @@ window.$docsify = {
           const raw = window.localStorage.getItem(READ_STORAGE_KEY);
           if (!raw) return {};
           const obj = JSON.parse(raw);
-          return obj && typeof obj === 'object' ? obj : {};
+          if (!obj || typeof obj !== 'object') return {};
+
+          // 兼容旧版本（值为 true 的情况）
+          const normalized = {};
+          Object.keys(obj).forEach((k) => {
+            const v = obj[k];
+            if (v === true || v === 'read') {
+              normalized[k] = 'read';
+            } else if (v === 'good' || v === 'bad') {
+              normalized[k] = v;
+            }
+          });
+          return normalized;
         } catch {
           return {};
         }
@@ -372,9 +385,27 @@ window.$docsify = {
 
         const state = loadReadState();
         if (currentPaperId) {
-          state[currentPaperId] = true;
+          if (!state[currentPaperId]) {
+            state[currentPaperId] = 'read';
+          }
           saveReadState(state);
         }
+
+        const applyLiState = (li, paperIdFromHref) => {
+          const status = state[paperIdFromHref];
+          li.classList.remove(
+            'sidebar-paper-read',
+            'sidebar-paper-good',
+            'sidebar-paper-bad',
+          );
+          if (status === 'good') {
+            li.classList.add('sidebar-paper-good');
+          } else if (status === 'bad') {
+            li.classList.add('sidebar-paper-bad');
+          } else if (status) {
+            li.classList.add('sidebar-paper-read');
+          }
+        };
 
         const links = nav.querySelectorAll('a[href*="#/"]');
         links.forEach((a) => {
@@ -384,12 +415,89 @@ window.$docsify = {
           const paperIdFromHref = m[1].replace(/\/$/, '');
           const li = a.closest('li');
           if (!li) return;
-          if (state[paperIdFromHref]) {
-            li.classList.add('sidebar-paper-read');
-          } else {
-            li.classList.remove('sidebar-paper-read');
-          }
+          // 标记这是一个具体论文条目，方便样式细化（避免整天标题一起高亮）
+          li.classList.add('sidebar-paper-item');
+          applyLiState(li, paperIdFromHref);
         });
+      };
+
+      // 5. 论文详情页标题处的好/坏评价按钮
+      const injectPaperRatingButtons = (paperId) => {
+        if (!paperId) return;
+        const mainContent = document.querySelector('.markdown-section');
+        if (!mainContent) return;
+        const titleEl = mainContent.querySelector('h1');
+        if (!titleEl) return;
+
+        let wrapper = titleEl.querySelector('.paper-rating-buttons');
+        const state = loadReadState();
+
+        const ensureSidebarSync = () => {
+          // 不修改当前已读状态，只根据最新 state 刷新样式
+          markSidebarReadState(null);
+        };
+
+        if (!wrapper) {
+          wrapper = document.createElement('span');
+          wrapper.className = 'paper-rating-buttons';
+
+          const goodBtn = document.createElement('button');
+          goodBtn.className = 'paper-rating-btn good';
+          goodBtn.textContent = '不错';
+
+          const badBtn = document.createElement('button');
+          badBtn.className = 'paper-rating-btn bad';
+          badBtn.textContent = '一般';
+
+          const updateBtnState = () => {
+            const s = state[paperId];
+            goodBtn.classList.toggle('active', s === 'good');
+            badBtn.classList.toggle('active', s === 'bad');
+          };
+
+          goodBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const current = state[paperId];
+            // 再次点击相同评价则回到「已读」状态
+            if (current === 'good') {
+              state[paperId] = 'read';
+            } else {
+              state[paperId] = 'good';
+            }
+            saveReadState(state);
+            updateBtnState();
+            ensureSidebarSync();
+          });
+
+          badBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const current = state[paperId];
+            if (current === 'bad') {
+              state[paperId] = 'read';
+            } else {
+              state[paperId] = 'bad';
+            }
+            saveReadState(state);
+            updateBtnState();
+            ensureSidebarSync();
+          });
+
+          wrapper.appendChild(goodBtn);
+          wrapper.appendChild(badBtn);
+          titleEl.appendChild(wrapper);
+          updateBtnState();
+        } else {
+          // 已存在按钮时，仅同步一次当前状态高亮
+          const goodBtn = wrapper.querySelector('.paper-rating-btn.good');
+          const badBtn = wrapper.querySelector('.paper-rating-btn.bad');
+          if (goodBtn && badBtn) {
+            const s = state[paperId];
+            goodBtn.classList.toggle('active', s === 'good');
+            badBtn.classList.toggle('active', s === 'bad');
+          }
+        }
       };
 
       // --- Docsify 生命周期钩子 ---
@@ -429,6 +537,13 @@ window.$docsify = {
         } else {
           // 首页也需要应用已有的“已读高亮”，但不新增记录
           markSidebarReadState(null);
+        }
+
+        // ----------------------------------------------------
+        // F2. 论文详情页标题处插入好/坏评价按钮
+        // ----------------------------------------------------
+        if (!isHomePage && paperId) {
+          injectPaperRatingButtons(paperId);
         }
 
         // ----------------------------------------------------

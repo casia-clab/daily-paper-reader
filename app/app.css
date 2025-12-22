@@ -251,10 +251,105 @@ article.markdown-section {
   display: none;
 }
 
-/* 已阅读论文在侧边栏中的高亮样式（浅绿色） */
-.sidebar-nav li.sidebar-paper-read > a {
-  background-color: #e6f7e6;
+/* 已阅读论文在侧边栏中的高亮样式（灰白色） */
+.sidebar-nav li.sidebar-paper-read {
+  background-color: #f3f3f3;
   border-radius: 4px;
+}
+
+/* 评价为“好”的论文（浅绿色文字，灰底保持一致） */
+.sidebar-nav li.sidebar-paper-good {
+  background-color: #f3f3f3;
+  border-radius: 4px;
+}
+.sidebar-nav li.sidebar-paper-good > a {
+  color: #389e0d;
+}
+
+/* 评价为“差”的论文（浅红色文字，灰底保持一致） */
+.sidebar-nav li.sidebar-paper-bad {
+  background-color: #f3f3f3;
+  border-radius: 4px;
+}
+.sidebar-nav li.sidebar-paper-bad > a {
+  color: #c41d7f;
+}
+
+/* 侧边栏交互状态：去掉下划线，悬停时仅在当前行右侧显示绿色小条 */
+.sidebar-nav li > a {
+  text-decoration: none;
+}
+.sidebar-nav li > a:hover {
+  background-color: transparent;
+}
+
+/* 当前页面所在行：右侧绿色细边，仅对论文条目生效 */
+.sidebar-nav li.sidebar-paper-item {
+  border-right: 3px solid transparent;
+}
+.sidebar-nav li.sidebar-paper-item > a {
+  text-decoration: none;
+}
+/* 悬停：浅绿色竖条 */
+.sidebar-nav li.sidebar-paper-item:hover {
+  border-right: 3px solid #b7eb8f;
+}
+/* 正在阅读：深绿色竖条 + 加粗文字
+   Docsify 通常会给当前项的 li 加 active 类，这里以 li.active 为准 */
+.sidebar-nav li.sidebar-paper-item.active {
+  border-right: 3px solid #52c41a;
+}
+.sidebar-nav li.sidebar-paper-item.active > a {
+  font-weight: 600;
+}
+
+/* 已阅读/评价论文的整行（含行间距）都使用灰底：
+   通过去掉上下 margin、改用 padding，并适当扩展 a 的左右范围。 */
+.sidebar-nav li.sidebar-paper-read,
+.sidebar-nav li.sidebar-paper-good,
+.sidebar-nav li.sidebar-paper-bad {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.sidebar-nav li.sidebar-paper-read > a,
+.sidebar-nav li.sidebar-paper-good > a,
+.sidebar-nav li.sidebar-paper-bad > a {
+  display: block;
+  margin-left: -6px;  /* 向左扩一些，让灰底不紧贴文字 */
+  margin-right: -6px; /* 右边也保持对称 */
+  padding-left: 14px; /* 补回一些缩进 */
+}
+
+/* 论文详情页标题区域的评价按钮 */
+.paper-rating-buttons {
+  margin-left: 8px;
+  display: inline-flex;
+  gap: 4px;
+}
+.paper-rating-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 10px;
+  min-width: 52px;
+  height: 26px;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+.paper-rating-btn.good {
+  background-color: #f6ffed; /* 浅绿色 */
+  color: #389e0d;
+}
+.paper-rating-btn.bad {
+  background-color: #fff0f6; /* 浅粉色 */
+  color: #c41d7f;
+}
+.paper-rating-btn.active {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
 }
 
 
