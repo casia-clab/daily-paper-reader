@@ -62,7 +62,7 @@ window.SubscriptionsManager = (function () {
             <div id="arxiv-keywords-pane" class="arxiv-pane">
               <div style="font-weight:500; margin-bottom:4px;">订阅关键词</div>
               <div id="arxiv-keywords-list" style="font-size:12px; height:120px; overflow-y:auto; border:1px solid #eee; padding:6px; border-radius:4px; background:#fff; margin-bottom:4px;"></div>
-              <div style="display:flex; gap:4px; margin-bottom:4px; align-items:center; max-width:100%;">
+              <div style="display:flex; gap:4px; margin-top:auto; align-items:center; max-width:100%;">
                 <input id="arxiv-keyword-input" type="text"
                   placeholder="新增关键词，如 llm"
                   style="flex:3 1 0; min-width:0; padding:6px; border-radius:4px; border:1px solid #ccc; font-size:12px;"
@@ -79,8 +79,8 @@ window.SubscriptionsManager = (function () {
 
             <div id="arxiv-zotero-pane" class="arxiv-pane">
               <div style="font-weight:500; margin-bottom:4px;">智能订阅（LLM Query）</div>
-              <div id="zotero-list" style="font-size:12px; height:88px; overflow-y:auto; border:1px solid #eee; padding:6px; border-radius:4px; background:#fff; margin-bottom:4px;"></div>
-              <div style="display:flex; gap:4px; margin-bottom:4px; align-items:center; max-width:100%;">
+              <div id="zotero-list" style="font-size:12px; height:120px; overflow-y:auto; border:1px solid #eee; padding:6px; border-radius:4px; background:#fff; margin-bottom:4px;"></div>
+              <div style="display:flex; gap:4px; margin-top:auto; align-items:center; max-width:100%;">
                 <input id="zotero-id-input" type="text"
                   placeholder="输入偏好描述 / 查询语句，如: small LLM for code"
                   style="flex:3 1 0; min-width:0; padding:6px; border-radius:4px; border:1px solid #ccc; font-size:12px;"

@@ -623,12 +623,16 @@ article.markdown-section {
   min-width: 0;
   box-sizing: border-box;
   background: #e8f5e9;
+  display: flex;
+  flex-direction: column;
 }
 #arxiv-zotero-pane {
   flex: 1 1 0;
   min-width: 0;
   box-sizing: border-box;
   background: #e3f2fd;
+  display: flex;
+  flex-direction: column;
 }
 #arxiv-search-section {
   margin-top: 8px;
