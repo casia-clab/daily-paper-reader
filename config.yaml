@@ -2,6 +2,14 @@
 # 注意：
 # - daily_job.py 会优先读取这里的关键词与抓取参数
 # - 前端面板后续也会以这个文件为“真源”（通过 GitHub API 读写）
+
+github:
+  # 如需在自定义域名部署（既不是 localhost，也不是 username.github.io/repo-name），
+  # 可在此处显式指定 GitHub 仓库 owner 与 repo，供前端推断远端仓库。
+  # owner 默认为当前登录用户；若不需要自定义，可保持默认。
+  owner: ""
+  repo: "daily-paper-reader"
+
 crawler:
   # 搜索时间窗口（天）：
   # - daily_job.py 中的 search_arxiv_today 会按“最近 N 天（UTC）”过滤结果
@@ -56,5 +64,4 @@ subscriptions:
     #     - "paperId_1"
     #     - "paperId_2"
     []
-
 

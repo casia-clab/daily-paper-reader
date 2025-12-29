@@ -61,24 +61,66 @@ window.SubscriptionsGithubToken = (function () {
       );
 
       if (missingScopes.length > 0) {
-        throw new Error(`缺少必要权限: ${missingScopes.join(', ')}`);
+        // 权限不足时直接返回失败结果，并带上现有权限列表，供 UI 做更友好的展示
+        return {
+          valid: false,
+          error: `Token 权限不足：缺少 ${missingScopes.join(
+            ', ',
+          )}。请在 GitHub 中重新生成 Personal Access Token，并至少勾选 repo（仓库读写）和 workflow（工作流）权限。`,
+          scopes: scopeList,
+          login: userData.login,
+        };
       }
 
-      // 3. 获取当前页面的仓库信息（从 URL 推断）
+      // 3. 获取当前页面的仓库信息
+      // 规则：
+      // - 若运行在 localhost（含 127.0.0.1），默认仓库名为 daily-paper-reader，owner 为当前登录用户
+      // - 若运行在 username.github.io/repo-name，则从 URL 解析 owner/repo
+      // - 其它域名：尝试从当前站点根目录的 config.yaml 中读取 github.owner / github.repo
       const currentUrl = window.location.href;
+      const urlObj = new URL(currentUrl);
+      const host = urlObj.hostname || '';
+
       let repoOwner = '';
       let repoName = '';
 
-      // 格式: https://username.github.io/repo-name/
-      const githubPagesMatch = currentUrl.match(
-        /https?:\/\/([^.]+)\.github\.io\/([^\/]+)/,
-      );
-      if (githubPagesMatch) {
-        repoOwner = githubPagesMatch[1];
-        repoName = githubPagesMatch[2];
+      // 情况 A：本地开发（localhost 或 127.0.0.1）
+      if (host === 'localhost' || host === '127.0.0.1') {
+        repoOwner = userData.login || '';
+        repoName = 'daily-paper-reader';
       } else {
-        // 如果不是 GitHub Pages，默认使用当前用户
-        repoOwner = userData.login;
+        // 情况 B：GitHub Pages
+        const githubPagesMatch = currentUrl.match(
+          /https?:\/\/([^.]+)\.github\.io\/([^\/]+)/,
+        );
+        if (githubPagesMatch) {
+          repoOwner = githubPagesMatch[1];
+          repoName = githubPagesMatch[2];
+        } else {
+          // 情况 C：其它域名，尝试从当前站点的 config.yaml 中读取 github 信息
+          try {
+            const res = await fetch('/config.yaml');
+            if (res.ok) {
+              const text = await res.text();
+              const yaml = window.jsyaml || window.jsYaml || window.jsYAML;
+              if (yaml && typeof yaml.load === 'function') {
+                const cfg = yaml.load(text) || {};
+                const githubCfg = (cfg && cfg.github) || {};
+                if (githubCfg && typeof githubCfg === 'object') {
+                  if (githubCfg.owner) repoOwner = String(githubCfg.owner);
+                  if (githubCfg.repo) repoName = String(githubCfg.repo);
+                }
+              }
+            }
+          } catch (e) {
+            // 忽略 config.yaml 读取失败，后续会回退为“未检测到仓库”
+          }
+
+          // 若 config.yaml 未提供 owner，则至少使用当前用户作为 owner
+          if (!repoOwner) {
+            repoOwner = userData.login || '';
+          }
+        }
       }
 
       // 4. 如果有仓库信息，验证 Token 是否有权限访问该仓库
@@ -204,7 +246,26 @@ window.SubscriptionsGithubToken = (function () {
       throw new Error('无法读取 config.yaml，请确认文件已存在且 Token 有权限。');
     }
     const data = await res.json();
-    const content = atob(data.content.replace(/\n/g, ''));
+    const rawBase64 = (data.content || '').replace(/\n/g, '');
+    // 使用 UTF-8 解码 base64，避免包含中文时出现乱码
+    let content = '';
+    try {
+      const binary = atob(rawBase64);
+      // 兼容旧浏览器：优先使用 TextDecoder，其次使用 escape/decodeURIComponent 方案
+      if (window.TextDecoder) {
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        content = new TextDecoder('utf-8').decode(bytes);
+      } else {
+        // eslint-disable-next-line no-escape
+        content = decodeURIComponent(escape(binary));
+      }
+    } catch (e) {
+      console.error('Failed to decode config.yaml content from GitHub:', e);
+      content = '';
+    }
     const yaml = window.jsyaml || window.jsYaml || window.jsYAML;
     if (!yaml || typeof yaml.load !== 'function') {
       throw new Error('前端缺少 YAML 解析库（js-yaml），无法解析 config.yaml。');
@@ -303,9 +364,22 @@ window.SubscriptionsGithubToken = (function () {
       githubTokenMessage,
       githubTokenInfo,
       githubUserName,
-      githubTokenExpiry,
       githubRepoName,
     } = dom;
+
+    // 公共：渲染“验证成功”提示信息
+    const renderSuccessMessage = (data) => {
+      if (!githubTokenMessage) return;
+      const scopes = Array.isArray(data.scopes) ? data.scopes : [];
+      githubTokenMessage.innerHTML = `
+        <div style="color:#28a745; font-size:12px; line-height:1.6;">
+          <strong>✅ 验证成功！</strong><br>
+          用户: ${data.login || ''}<br>
+          仓库: ${data.repo || ''}<br>
+          权限: ${scopes.join(', ')}
+        </div>
+      `;
+    };
 
     // 更新登录按钮状态
     const updateAuthButtonStatus = () => {
@@ -326,15 +400,6 @@ window.SubscriptionsGithubToken = (function () {
       if (githubTokenInfo && githubUserName && githubRepoName) {
         githubUserName.textContent = userData.login || 'Unknown';
         githubRepoName.textContent = userData.repo || 'Unknown';
-
-        if (userData.expiry) {
-          githubTokenExpiry.textContent = new Date(
-            userData.expiry,
-          ).toLocaleDateString('zh-CN');
-        } else {
-          githubTokenExpiry.textContent = '永久';
-        }
-
         githubTokenInfo.style.display = 'block';
       }
     };
@@ -355,6 +420,11 @@ window.SubscriptionsGithubToken = (function () {
 
           const tokenData = loadGithubToken();
           if (tokenData && tokenData.verified) {
+            // 已登录成功：自动填入 Token，并展示成功提示
+            if (githubTokenInput) {
+              githubTokenInput.value = tokenData.token || '';
+            }
+            renderSuccessMessage(tokenData);
             showTokenInfo(tokenData);
           }
         } else {
@@ -410,21 +480,37 @@ window.SubscriptionsGithubToken = (function () {
 
           saveGithubToken(tokenData);
 
-          githubTokenMessage.innerHTML = `
-            <div style="color:#28a745;">
-              <strong>✅ 验证成功！</strong><br>
-              用户: ${result.login}<br>
-              仓库: ${result.repo}<br>
-              权限: ${result.scopes.join(', ')}
-            </div>
-          `;
+          renderSuccessMessage(tokenData);
 
           showTokenInfo(tokenData);
           updateAuthButtonStatus();
           githubTokenInput.value = '';
         } else {
-          githubTokenMessage.innerHTML = `<span style="color:#dc3545;">❌ ${result.error}</span>`;
+          const userText =
+            result.login && typeof result.login === 'string'
+              ? `用户: ${result.login}<br>`
+              : '';
+          const scopesText =
+            result.scopes && result.scopes.length
+              ? `现有权限: ${result.scopes.join(', ')}<br>`
+              : '现有权限: （无）<br>';
+          githubTokenMessage.innerHTML = `
+            <div style="font-size:12px; line-height:1.6;">
+              ${userText}${scopesText}
+              <span style="color:#dc3545;">❌ ${result.error}</span>
+            </div>
+          `;
           hideTokenInfo();
+
+          // 验证失败时，将顶部按钮状态改为「验证失败」红色按钮，给予更明确提示
+          if (githubAuthBtn) {
+            githubAuthBtn.textContent = '验证失败';
+            githubAuthBtn.style.background = '#dc3545';
+            githubAuthBtn.style.color = 'white';
+          }
+
+          // 同时清除本地已保存的 Token，避免刷新后仍显示“登录成功”
+          clearGithubToken();
         }
 
         githubTokenVerifyBtn.disabled = false;

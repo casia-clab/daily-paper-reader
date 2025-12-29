@@ -54,11 +54,6 @@ window.SubscriptionsManager = (function () {
             <button id="github-token-clear-btn" class="arxiv-tool-btn" style="padding:8px 12px; background:#dc3545; color:white;">清除</button>
           </div>
           <div id="github-token-message" style="margin-top:8px; font-size:12px; line-height:1.5;"></div>
-          <div id="github-token-info" style="display:none; margin-top:8px; padding:8px; background:#d4edda; border:1px solid #c3e6cb; border-radius:4px; font-size:12px;">
-            <div><strong>登录用户：</strong><span id="github-user-name"></span></div>
-            <div><strong>Token 有效期：</strong><span id="github-token-expiry">永久</span></div>
-            <div><strong>管理仓库：</strong><span id="github-repo-name"></span></div>
-          </div>
         </div>
 
         <div id="arxiv-subscriptions">
