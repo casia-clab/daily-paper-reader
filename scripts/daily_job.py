@@ -750,6 +750,7 @@ def process_single_paper(paper: dict, source: str | None = None, keywords: list[
 {f'# {zh_title}\n\n' if zh_title else ''}
 
 **Authors**: {', '.join(paper_authors) if paper_authors else 'Unknown'}
+
 **Date**: {date}
 
 {"**Tags**: " + tags_html if tags_html else ""}
