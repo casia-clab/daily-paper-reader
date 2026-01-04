@@ -12,6 +12,8 @@ subscriptions:
     - keyword: transformer
       alias: 大语言模型
   llm_queries:
-    - query: 我希望找到一些大厂出的大模型相关论文或者技术汇报
-      alias: 大厂LLM
+    - query: 我希望找一些跟符号回归相关的论文，我是做benchmark的希望找一些benchmark和符号回归结合的论文
+      alias: sr-bench
+    - query: 我希望找一些大厂出的大模型技术论文或者技术报告
+      alias: 大厂llm
   tracked_papers: []
